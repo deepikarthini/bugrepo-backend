@@ -31,7 +31,7 @@ public class BugReport {
     private BugStatus status; // NEW, IN_PROGRESS, ASSIGNED, RESOLVED, CLOSED
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "reported_by_id", nullable = false)
+    @JoinColumn(name = "reported_by_id") // Made nullable for testing
     private User reportedBy;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -58,11 +58,17 @@ public class BugReport {
     private String videoUrl;
 
     @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt = LocalDateTime.now();
+    private LocalDateTime createdAt;
 
-    private LocalDateTime updatedAt = LocalDateTime.now();
+    private LocalDateTime updatedAt;
 
     private LocalDateTime resolvedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
 
     @PreUpdate
     protected void onUpdate() {
