@@ -3,6 +3,7 @@ package com.reprotrack.bugreproductionrecorder.service;
 import com.reprotrack.bugreproductionrecorder.dto.BugReportRequest;
 import com.reprotrack.bugreproductionrecorder.dto.BugReportResponse;
 import com.reprotrack.bugreproductionrecorder.entity.BugReport;
+import com.reprotrack.bugreproductionrecorder.entity.BugStep;
 import com.reprotrack.bugreproductionrecorder.entity.Environment;
 import com.reprotrack.bugreproductionrecorder.entity.User;
 import com.reprotrack.bugreproductionrecorder.repository.BugReportRepository;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -109,8 +111,25 @@ public class BugReportService {
                         ? request.getReproductionSteps().get(0).getActual() : null)
                 .build();
 
-        bugReport = bugReportRepository.save(bugReport);
-        return mapToResponse(bugReport);
+            if (request.getReproductionSteps() != null && !request.getReproductionSteps().isEmpty()) {
+                List<BugStep> steps = request.getReproductionSteps().stream()
+                    .map(step -> BugStep.builder()
+                        .bugReport(bugReport)
+                        .stepNumber(step.getStep() != null ? step.getStep() : 1)
+                        .description(step.getDescription())
+                        .actionType(inferActionType(step.getDescription()))
+                        .inputValue(step.getDescription())
+                        .screenshotUrl(step.getScreenshot())
+                        .expectedValue(step.getExpected())
+                        .actualValue(step.getActual())
+                        .duration(1000L)
+                        .build())
+                    .collect(Collectors.toList());
+                bugReport.setSteps(steps);
+            }
+
+        BugReport savedBugReport = bugReportRepository.save(bugReport);
+        return mapToResponse(savedBugReport);
     }
 
     @Transactional
@@ -204,9 +223,40 @@ public class BugReportService {
                 bugReport.getAssignedTo().getEmail() : null);
         response.setEnvironment(bugReport.getEnvironment() != null ? 
                 bugReport.getEnvironment().getName() : null);
-        response.setReproductionSteps(null); // TODO: Map bug steps if needed
+        if (bugReport.getSteps() != null) {
+            List<BugReportResponse.ReproductionStep> steps = bugReport.getSteps().stream()
+                    .sorted(Comparator.comparing(BugStep::getStepNumber))
+                    .map(step -> {
+                        BugReportResponse.ReproductionStep reproductionStep = new BugReportResponse.ReproductionStep();
+                        reproductionStep.setStep(step.getStepNumber());
+                        reproductionStep.setDescription(step.getDescription());
+                        reproductionStep.setScreenshot(step.getScreenshotUrl());
+                        reproductionStep.setExpected(step.getExpectedValue());
+                        reproductionStep.setActual(step.getActualValue());
+                        return reproductionStep;
+                    })
+                    .collect(Collectors.toList());
+            response.setReproductionSteps(steps);
+        }
         response.setCreatedAt(bugReport.getCreatedAt());
         response.setUpdatedAt(bugReport.getUpdatedAt());
         return response;
+    }
+
+    private BugStep.ActionType inferActionType(String description) {
+        String content = description == null ? "" : description.toLowerCase();
+        if (content.contains("type") || content.contains("enter") || content.contains("input")) {
+            return BugStep.ActionType.INPUT;
+        }
+        if (content.contains("scroll")) {
+            return BugStep.ActionType.SCROLL;
+        }
+        if (content.contains("wait")) {
+            return BugStep.ActionType.WAIT;
+        }
+        if (content.contains("navigate") || content.contains("open") || content.contains("visit")) {
+            return BugStep.ActionType.NAVIGATE;
+        }
+        return BugStep.ActionType.CLICK;
     }
 }

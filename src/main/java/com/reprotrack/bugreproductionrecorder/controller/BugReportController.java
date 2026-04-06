@@ -2,9 +2,13 @@ package com.reprotrack.bugreproductionrecorder.controller;
 
 import com.reprotrack.bugreproductionrecorder.dto.BugReportRequest;
 import com.reprotrack.bugreproductionrecorder.dto.BugReportResponse;
+import com.reprotrack.bugreproductionrecorder.dto.BugAiInsightsResponse;
 import com.reprotrack.bugreproductionrecorder.entity.BugReport;
+import com.reprotrack.bugreproductionrecorder.service.BugAiInsightService;
 import com.reprotrack.bugreproductionrecorder.service.BugReportService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -18,6 +22,9 @@ public class BugReportController {
 
     @Autowired
     private BugReportService bugReportService;
+
+    @Autowired
+    private BugAiInsightService bugAiInsightService;
 
     @PostMapping
     @PreAuthorize("hasAnyRole('QA', 'DEVELOPER', 'ADMIN')")
@@ -35,6 +42,22 @@ public class BugReportController {
     @PreAuthorize("hasAnyRole('QA', 'DEVELOPER', 'ADMIN')")
     public ResponseEntity<BugReportResponse> getBugReportById(@PathVariable Long id) {
         return ResponseEntity.ok(bugReportService.getBugReportById(id));
+    }
+
+    @GetMapping("/{id}/ai-insights")
+    @PreAuthorize("hasAnyRole('QA', 'DEVELOPER', 'ADMIN')")
+    public ResponseEntity<BugAiInsightsResponse> getAiInsights(@PathVariable Long id) {
+        return ResponseEntity.ok(bugAiInsightService.generateInsights(id));
+    }
+
+    @GetMapping(value = "/{id}/ai-report", produces = "text/markdown")
+    @PreAuthorize("hasAnyRole('QA', 'DEVELOPER', 'ADMIN')")
+    public ResponseEntity<String> exportAiReport(@PathVariable Long id) {
+        BugAiInsightsResponse insights = bugAiInsightService.generateInsights(id);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=bug-" + id + "-ai-report.md")
+                .contentType(MediaType.parseMediaType("text/markdown"))
+                .body(insights.getExportMarkdown());
     }
 
     @GetMapping("/my-reports")
