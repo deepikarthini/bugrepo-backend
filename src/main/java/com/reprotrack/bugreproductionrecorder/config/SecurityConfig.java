@@ -50,9 +50,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                     .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/", "/health", "/api/health").permitAll()
-                    .requestMatchers("/**/health", "/**/api/health").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
-                    .requestMatchers("/**/api/auth/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, userDetailsService),
