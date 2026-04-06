@@ -1,9 +1,14 @@
 package com.reprotrack.bugreproductionrecorder.service;
 
 import com.reprotrack.bugreproductionrecorder.dto.BugAiInsightsResponse;
+import com.reprotrack.bugreproductionrecorder.entity.BugAiAnalysis;
 import com.reprotrack.bugreproductionrecorder.entity.BugReport;
 import com.reprotrack.bugreproductionrecorder.entity.BugStep;
+import com.reprotrack.bugreproductionrecorder.repository.BugAiAnalysisRepository;
 import com.reprotrack.bugreproductionrecorder.repository.BugReportRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,14 +31,27 @@ public class BugAiInsightService {
             "after", "before", "click", "enter", "page", "screen", "button"
     );
 
+    private final BugAiAnalysisRepository bugAiAnalysisRepository;
     private final BugReportRepository bugReportRepository;
+    private final ObjectMapper objectMapper;
 
-    public BugAiInsightService(BugReportRepository bugReportRepository) {
+    public BugAiInsightService(BugAiAnalysisRepository bugAiAnalysisRepository,
+                               BugReportRepository bugReportRepository,
+                               ObjectMapper objectMapper) {
+        this.bugAiAnalysisRepository = bugAiAnalysisRepository;
         this.bugReportRepository = bugReportRepository;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional(readOnly = true)
-    public BugAiInsightsResponse generateInsights(Long bugId) {
+    public BugAiInsightsResponse getInsights(Long bugId) {
+        return bugAiAnalysisRepository.findByBugReportId(bugId)
+                .map(this::toResponse)
+                .orElseGet(() -> regenerateInsights(bugId));
+    }
+
+    @Transactional
+    public BugAiInsightsResponse regenerateInsights(Long bugId) {
         BugReport bug = bugReportRepository.findById(bugId)
                 .orElseThrow(() -> new RuntimeException("Bug report not found"));
 
@@ -46,6 +64,11 @@ public class BugAiInsightService {
         response.setPlaywrightScript(generatePlaywrightScript(bug));
         response.setExportMarkdown(buildExportMarkdown(bug, response));
         response.setGeneratedAt(LocalDateTime.now());
+
+        BugAiAnalysis analysis = bugAiAnalysisRepository.findByBugReportId(bugId)
+            .orElseGet(() -> BugAiAnalysis.builder().bugReport(bug).build());
+        applyResponseToEntity(response, analysis);
+        bugAiAnalysisRepository.save(analysis);
         return response;
     }
 
@@ -219,6 +242,57 @@ public class BugAiInsightService {
                 .append("```\n");
 
         return markdown.toString();
+    }
+
+    private BugAiInsightsResponse toResponse(BugAiAnalysis analysis) {
+        BugAiInsightsResponse response = new BugAiInsightsResponse();
+        response.setSummary(analysis.getSummary());
+        response.setSuggestedPriority(analysis.getSuggestedPriority());
+        response.setRootCauseHint(analysis.getRootCauseHint());
+        response.setReasoning(readList(analysis.getReasoningJson(), new TypeReference<List<String>>() {}));
+        response.setDuplicateCandidates(readList(
+                analysis.getDuplicateCandidatesJson(),
+                new TypeReference<List<BugAiInsightsResponse.DuplicateCandidate>>() {}
+        ));
+        response.setPlaywrightScript(analysis.getPlaywrightScript());
+        response.setExportMarkdown(analysis.getExportMarkdown());
+        response.setGeneratedAt(analysis.getGeneratedAt());
+        return response;
+    }
+
+    private void applyResponseToEntity(BugAiInsightsResponse response, BugAiAnalysis analysis) {
+        analysis.setSummary(response.getSummary());
+        analysis.setSuggestedPriority(response.getSuggestedPriority());
+        analysis.setRootCauseHint(response.getRootCauseHint());
+        analysis.setReasoningJson(writeJson(response.getReasoning()));
+        analysis.setDuplicateCandidatesJson(writeJson(response.getDuplicateCandidates()));
+        analysis.setPlaywrightScript(response.getPlaywrightScript());
+        analysis.setExportMarkdown(response.getExportMarkdown());
+        analysis.setGeneratedAt(response.getGeneratedAt());
+    }
+
+    private String writeJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value == null ? List.of() : value);
+        } catch (JsonProcessingException exception) {
+            throw new RuntimeException("Failed to serialize AI analysis", exception);
+        }
+    }
+
+    private <T> T readList(String json, TypeReference<T> typeReference) {
+        if (json == null || json.isBlank()) {
+            try {
+                return objectMapper.readValue("[]", typeReference);
+            } catch (JsonProcessingException exception) {
+                throw new RuntimeException("Failed to deserialize empty AI analysis payload", exception);
+            }
+        }
+
+        try {
+            return objectMapper.readValue(json, typeReference);
+        } catch (JsonProcessingException exception) {
+            throw new RuntimeException("Failed to deserialize AI analysis", exception);
+        }
     }
 
     private String collectAnalysisText(BugReport bug) {

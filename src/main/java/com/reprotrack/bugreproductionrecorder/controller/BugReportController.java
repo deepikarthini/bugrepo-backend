@@ -47,13 +47,19 @@ public class BugReportController {
     @GetMapping("/{id}/ai-insights")
     @PreAuthorize("hasAnyRole('QA', 'DEVELOPER', 'ADMIN')")
     public ResponseEntity<BugAiInsightsResponse> getAiInsights(@PathVariable Long id) {
-        return ResponseEntity.ok(bugAiInsightService.generateInsights(id));
+        return ResponseEntity.ok(bugAiInsightService.getInsights(id));
+    }
+
+    @PostMapping("/{id}/ai-insights/regenerate")
+    @PreAuthorize("hasAnyRole('QA', 'DEVELOPER', 'ADMIN')")
+    public ResponseEntity<BugAiInsightsResponse> regenerateAiInsights(@PathVariable Long id) {
+        return ResponseEntity.ok(bugAiInsightService.regenerateInsights(id));
     }
 
     @GetMapping(value = "/{id}/ai-report", produces = "text/markdown")
     @PreAuthorize("hasAnyRole('QA', 'DEVELOPER', 'ADMIN')")
     public ResponseEntity<String> exportAiReport(@PathVariable Long id) {
-        BugAiInsightsResponse insights = bugAiInsightService.generateInsights(id);
+        BugAiInsightsResponse insights = bugAiInsightService.getInsights(id);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=bug-" + id + "-ai-report.md")
                 .contentType(MediaType.parseMediaType("text/markdown"))
