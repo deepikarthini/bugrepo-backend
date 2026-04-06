@@ -33,14 +33,12 @@ public class BugAiInsightService {
 
     private final BugAiAnalysisRepository bugAiAnalysisRepository;
     private final BugReportRepository bugReportRepository;
-    private final ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public BugAiInsightService(BugAiAnalysisRepository bugAiAnalysisRepository,
-                               BugReportRepository bugReportRepository,
-                               ObjectMapper objectMapper) {
+                               BugReportRepository bugReportRepository) {
         this.bugAiAnalysisRepository = bugAiAnalysisRepository;
         this.bugReportRepository = bugReportRepository;
-        this.objectMapper = objectMapper;
     }
 
     @Transactional(readOnly = true)
