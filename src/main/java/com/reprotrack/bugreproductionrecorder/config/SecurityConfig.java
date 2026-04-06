@@ -14,6 +14,7 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.util.matcher.RegexRequestMatcher;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -51,6 +52,10 @@ public class SecurityConfig {
                     .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/", "/health", "/api/health").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
+                    .requestMatchers(RegexRequestMatcher.regexMatcher(".*/api/health/?$"))
+                    .permitAll()
+                    .requestMatchers(RegexRequestMatcher.regexMatcher(".*/api/auth/.*"))
+                    .permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, userDetailsService),
