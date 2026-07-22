@@ -35,6 +35,7 @@ public class BugAssignment {
     private AssignmentStatus status; // PENDING, ACCEPTED, REJECTED, COMPLETED
 
     @Column(nullable = false, updatable = false)
+    @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 
     private LocalDateTime acceptedAt;
@@ -43,6 +44,7 @@ public class BugAssignment {
 
     private LocalDateTime completedAt;
 
+    @Builder.Default
     private LocalDateTime updatedAt = LocalDateTime.now();
 
     @PreUpdate

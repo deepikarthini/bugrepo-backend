@@ -12,7 +12,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/bugs/{bugReportId}/steps")
-@CrossOrigin(origins = "*")
 public class BugStepController {
 
     @Autowired

@@ -40,6 +40,7 @@ public class Environment {
     private String deviceType; // DESKTOP, TABLET, MOBILE
 
     @Column(nullable = false)
+    @Builder.Default
     private Boolean isActive = true;
 
     @Column(nullable = false, updatable = false)

@@ -12,7 +12,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/environments")
-@CrossOrigin(origins = "*")
 public class EnvironmentController {
 
     @Autowired

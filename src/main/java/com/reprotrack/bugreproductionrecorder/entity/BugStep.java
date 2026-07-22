@@ -1,5 +1,6 @@
 package com.reprotrack.bugreproductionrecorder.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
@@ -15,6 +16,7 @@ public class BugStep {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "bug_report_id", nullable = false)
     private BugReport bugReport;
@@ -54,8 +56,10 @@ public class BugStep {
     private Double yCoordinate;
 
     @Column(nullable = false, updatable = false)
+    @Builder.Default
     private LocalDateTime timestamp = LocalDateTime.now();
 
+    @Builder.Default
     private LocalDateTime updatedAt = LocalDateTime.now();
 
     @PreUpdate
